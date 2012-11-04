@@ -9,6 +9,7 @@
  */
 
 #include "ofxAudioFeaturesChannel.h"
+#include <iostream>
 
 struct _aubio_onset_t
 {
@@ -28,8 +29,8 @@ struct _aubio_onset_t
 //--------------------------------------------------------------
 ofxAudioFeaturesChannel::ofxAudioFeaturesChannel()
 : gain(1.0)
-, attack(0.3)
-, decay(0.4)
+, attack(0.0)
+, decay(0.0)
 , sampleRate(0.)
 , hopSize(0)
 , spectrumSize(0)
@@ -65,7 +66,7 @@ ofxAudioFeaturesChannel::setup(size_t _bufferSize, size_t _hopSize, float _sampl
 
   currentHopBuffer        = new_fvec(hopSize);
   onsetOutputBuffer       = new_fvec(1);
-  onsetProcessor          = new_aubio_onset("specflux", bufferSize, hopSize, sampleRate);
+  onsetProcessor          = new_aubio_onset("mkl", bufferSize, hopSize, sampleRate);
   
   pitchOutputBuffer       = new_fvec(1);
   pitchProcessor          = new_aubio_pitch("yin", bufferSize, hopSize, sampleRate);
@@ -181,6 +182,7 @@ ofxAudioFeaturesChannel::process(const float now)
   }
 
   // process hop
+//  aubio_fft_do(fftProcessor, currentHopBuffer, fftComplexOutputBuffer);
   aubio_onset_do(onsetProcessor, currentHopBuffer, onsetOutputBuffer);
   aubio_pitch_do(pitchProcessor, currentHopBuffer, pitchOutputBuffer);
 
@@ -213,6 +215,7 @@ ofxAudioFeaturesChannel::process(const float now)
   // steal fft from onset detector's phase vocoder
   for (unsigned int i=0; i<spectrum.size(); ++i)
   {
+    //spectrum[i] = fftComplexOutputBuffer->norm[i];
     spectrum[i] = onsetProcessor->fftgrain->norm[i];
     phase[i] = onsetProcessor->fftgrain->phas[i];
   }
@@ -248,3 +251,89 @@ ofxAudioFeaturesChannel::process(const float now)
   }
 }
 #undef lerp
+
+//--------------------------------------------------------------
+bool
+ofxAudioFeaturesChannel::_compareSpectrumToReference(const std::vector<float>& spectrumReference)
+{
+  float maxValue = FLT_MIN;
+  float maxValueBin = FLT_MAX;
+
+  float maxValueReference = FLT_MIN;
+  float maxValueBinReference = FLT_MAX;
+
+  float sumReference = 0;
+  float sum = 0;
+
+  float total_error = 0;
+  float maxError = FLT_MIN;
+  size_t maxErrorBin = FLT_MAX;
+  size_t numIdenticalBins = 0;
+
+  if (spectrum.size() != spectrumReference.size())
+  {
+    std::cout
+    << "spectrum.size(), " << spectrum.size()
+    << " != "
+    << "spectrumReference.size()," << spectrumReference.size()
+    << std::endl;
+    return false;
+  }
+
+	for (unsigned int i=0; i<spectrumReference.size(); ++i)
+  {
+    float binVal = spectrum[i];
+    float binValReference = spectrumReference[i];
+    
+    float error = abs(binValReference - binVal);
+    if (error < (0.0001))
+      numIdenticalBins++;
+
+    sum += binVal;
+    sumReference += binValReference;
+    
+    total_error += error;
+
+    if (binValReference > maxValueReference)
+    {
+      maxValueReference = binValReference;
+      maxValueBinReference = i;
+    }
+    
+    if (binVal > maxValue)
+    {
+      maxValue = binVal;
+      maxValueBin = i;
+    }
+    
+    if (error > maxError)
+    {
+      maxError = error;
+      maxErrorBin = i;
+    }
+    
+    //    if (kiss_val > 1.0)
+    //      std::cout << "kiss idx " << i << " > 1.0, = " << kiss_val << std::endl;
+    //    if (val > 1.0)
+    //      std::cout << "fftw idx " << i << " > 1.0, = " << val << std::endl;
+  }
+  
+  float errorAmt = total_error / ((sum + sumReference)/2);
+  if (numIdenticalBins != spectrum.size())
+  {
+    std::cout
+    << "max error = " << maxError << " @ " << maxErrorBin
+    << ", # correct = " << numIdenticalBins
+    << ", ";
+
+    std::cout
+    << "total_error % = " << (errorAmt*100.0)
+    << ", max kiss val = " << maxValueReference << " @ " << maxValueBinReference
+    << ", max fftw val = " << maxValue << " @ " << maxValueBin
+    << ", kiss_sum = " << sumReference
+    << ", sum = " << sum
+    << std::endl;
+  }
+
+  return (numIdenticalBins==spectrum.size());
+}

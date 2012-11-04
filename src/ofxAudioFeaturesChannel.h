@@ -26,6 +26,8 @@ public:
   void setup(size_t _bufferSize, size_t _hopSize, float _sampleRate);
   void destroy();
   void process(const float now);
+  
+  bool _compareSpectrumToReference(const std::vector<float>& spectrumReference);
 
   std::vector<float> inputBuffer;
   std::vector<float> spectrum;
@@ -46,19 +48,18 @@ public:
   std::map<std::string, float> spectralFeatures;
   std::vector<std::string> usedFeatures;
 
+  aubio_fft_t* fftProcessor;
+  aubio_onset_t* onsetProcessor;
+  aubio_pitch_t* pitchProcessor;
+  std::map<std::string, aubio_specdesc_t*> spectralFeatureProcessor;
+
 protected:
   fvec_t* currentHopBuffer;
 
   cvec_t* fftComplexOutputBuffer;
-  aubio_fft_t* fftProcessor;
-  
   fvec_t* onsetOutputBuffer;
-  aubio_onset_t* onsetProcessor;
-  
   fvec_t* pitchOutputBuffer;
-  aubio_pitch_t* pitchProcessor;
 
-  std::map<std::string, aubio_specdesc_t*> spectralFeatureProcessor;
   std::map<std::string, fvec_t*> spectralFeatureOutputBuffer;
 
 private:
@@ -69,4 +70,3 @@ private:
   size_t bufferSize;
   size_t hopSize;
 };
-
