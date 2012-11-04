@@ -28,10 +28,7 @@ struct _aubio_onset_t
 
 //--------------------------------------------------------------
 ofxAudioFeaturesChannel::ofxAudioFeaturesChannel()
-: gain(1.0)
-, attack(0.0)
-, decay(0.0)
-, sampleRate(0.)
+: sampleRate(0.)
 , hopSize(0)
 , spectrumSize(0)
 , bufferSize(0)
@@ -90,8 +87,6 @@ ofxAudioFeaturesChannel::setup(size_t _bufferSize, size_t _hopSize, float _sampl
   spectralFeatureProcessor["decrease"]  = new_aubio_specdesc("decrease",  hopSize);
   spectralFeatureProcessor["rolloff"]   = new_aubio_specdesc("rolloff",   hopSize);
 */
-//  for (std::map<std::string, aubio_specdesc_t*>::iterator spectralFeatureProcessorIter = spectralFeatureProcessor.begin();
-//       spectralFeatureProcessorIter != spectralFeatureProcessor.end(); ++spectralFeatureProcessorIter)
   for (size_t i=0; i<usedFeatures.size(); ++i)
   {
     const std::string& featureName(usedFeatures[i]);
@@ -106,11 +101,7 @@ ofxAudioFeaturesChannel::setup(size_t _bufferSize, size_t _hopSize, float _sampl
 	phase.resize(spectrumSize);
 	binsScale.resize(spectrumSize);
   
-	smoothedSpectrum.resize(spectrumSize, 1.);
-	smoothedPhase.resize(spectrumSize, 1.);
-
 	calibrateMic = false;
-  
 }
 
 //--------------------------------------------------------------
@@ -170,7 +161,6 @@ ofxAudioFeaturesChannel::destroy()
   spectralFeatureOutputBuffer.clear();
 }
 
-#define lerp(start, stop, amt)  (start + (stop-start) * amt)
 //--------------------------------------------------------------
 void
 ofxAudioFeaturesChannel::process(const float now)
@@ -178,7 +168,7 @@ ofxAudioFeaturesChannel::process(const float now)
   // input new hop
 	for (unsigned int i=0; i<hopSize; ++i)
   {
-		currentHopBuffer->data[i] = inputBuffer[i] * gain;
+		currentHopBuffer->data[i] = inputBuffer[i];
   }
 
   // process hop
@@ -199,7 +189,9 @@ ofxAudioFeaturesChannel::process(const float now)
   // pitch extraction (per-hop)
   float currentPitch = pitchOutputBuffer->data[0];
   if (currentPitch != 0)
+#define lerp(start, stop, amt)  (start + (stop-start) * amt)
     pitch = lerp(pitch, currentPitch, 0.7);
+#undef lerp
 
   // onset extraction (per-hop)
   bool onsetDetected = (onsetOutputBuffer->data[0] > FLT_EPSILON);
@@ -220,24 +212,15 @@ ofxAudioFeaturesChannel::process(const float now)
     phase[i] = onsetProcessor->fftgrain->phas[i];
   }
 
-  // spectrum smoothing
-  for (unsigned int i=0; i<spectrum.size(); ++i)
-  {
-    if (spectrum[i] > smoothedSpectrum[i])
-      smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], attack);
-    else if (spectrum[i] < smoothedSpectrum[i])
-      smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], decay);
-  }
-  
   // spectrum magnitude calibration
   if (calibrateMic)
   {
-    for (unsigned int i=0; i<smoothedSpectrum.size(); ++i)
+    for (unsigned int i=0; i<spectrum.size(); ++i)
     {
       if (binsScale[i] > FLT_MAX || binsScale[i] <= 0)
         binsScale[i] = 1.;
-      else if (smoothedSpectrum[i] > binsScale[i])
-        binsScale[i] = smoothedSpectrum[i];
+      else if (spectrum[i] > binsScale[i])
+        binsScale[i] = spectrum[i];
     }
 
     calibratedMic = true;
@@ -245,9 +228,26 @@ ofxAudioFeaturesChannel::process(const float now)
   else if (calibratedMic)
   {
     // scaling by calibrated values
-    for (unsigned int i=0; i<smoothedSpectrum.size(); ++i)
+    for (unsigned int i=0; i<spectrum.size(); ++i)
       if (binsScale[i] > 0)
-        smoothedSpectrum[i] /= binsScale[i];
+        spectrum[i] /= binsScale[i];
+  }
+}
+
+#define lerp(start, stop, amt)  (start + (stop-start) * amt)
+//--------------------------------------------------------------
+void
+ofxAudioFeaturesChannel::updateSmoothedSpectrum(std::vector<float>& smoothedSpectrum,
+                                                float attack,
+                                                float decay)
+{
+  // spectrum smoothing
+  for (unsigned int i=0; i<spectrum.size(); ++i)
+  {
+    if (spectrum[i] > smoothedSpectrum[i])
+      smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], attack);
+    else if (spectrum[i] < smoothedSpectrum[i])
+      smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], decay);
   }
 }
 #undef lerp
@@ -311,11 +311,6 @@ ofxAudioFeaturesChannel::_compareSpectrumToReference(const std::vector<float>& s
       maxError = error;
       maxErrorBin = i;
     }
-    
-    //    if (kiss_val > 1.0)
-    //      std::cout << "kiss idx " << i << " > 1.0, = " << kiss_val << std::endl;
-    //    if (val > 1.0)
-    //      std::cout << "fftw idx " << i << " > 1.0, = " << val << std::endl;
   }
   
   float errorAmt = total_error / ((sum + sumReference)/2);

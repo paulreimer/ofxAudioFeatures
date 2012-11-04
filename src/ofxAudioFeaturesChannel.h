@@ -26,18 +26,15 @@ public:
   void setup(size_t _bufferSize, size_t _hopSize, float _sampleRate);
   void destroy();
   void process(const float now);
+  void updateSmoothedSpectrum(std::vector<float>& smoothedSpectrum,
+                              float attack,
+                              float decay);
   
   bool _compareSpectrumToReference(const std::vector<float>& spectrumReference);
 
   std::vector<float> inputBuffer;
   std::vector<float> spectrum;
   std::vector<float> phase;
-  std::vector<float> smoothedSpectrum;
-  std::vector<float> smoothedPhase;
-
-  float attack;
-  float decay;
-  float gain;
 
   bool calibrateMic;
   bool calibratedMic;
