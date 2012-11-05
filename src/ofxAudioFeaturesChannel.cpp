@@ -235,6 +235,7 @@ ofxAudioFeaturesChannel::process(const float now)
 }
 
 #define lerp(start, stop, amt)  (start + (stop-start) * amt)
+#define clamp(value, min, max) (value < min ? min : value > max ? max : value)
 //--------------------------------------------------------------
 void
 ofxAudioFeaturesChannel::updateSmoothedSpectrum(std::vector<float>& smoothedSpectrum,
@@ -244,6 +245,46 @@ ofxAudioFeaturesChannel::updateSmoothedSpectrum(std::vector<float>& smoothedSpec
   // spectrum smoothing
   for (unsigned int i=0; i<spectrum.size(); ++i)
   {
+    if (spectrum[i] > smoothedSpectrum[i])
+      smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], attack);
+    else if (spectrum[i] < smoothedSpectrum[i])
+      smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], decay);
+  }
+}
+
+//--------------------------------------------------------------
+void
+ofxAudioFeaturesChannel::updateSmoothedSpectrum(std::vector<float>& smoothedSpectrum,
+                                                float attackOffset,
+                                                float decayOffset,
+                                                float attackMult,
+                                                float decayMult)
+{
+  updateSmoothedSpectrum(smoothedSpectrum,
+                         attackOffset,
+                         decayOffset,
+                         attackMult,
+                         decayMult,
+                         smoothedSpectrum,
+                         smoothedSpectrum);
+}
+
+//--------------------------------------------------------------
+void
+ofxAudioFeaturesChannel::updateSmoothedSpectrum(std::vector<float>& smoothedSpectrum,
+                                                float attackOffset,
+                                                float decayOffset,
+                                                float attackMult,
+                                                float decayMult,
+                                                const std::vector<float>& attackCoeffs,
+                                                const std::vector<float>& decayCoeffs)
+{
+  // spectrum smoothing
+  for (unsigned int i=0; i<spectrum.size(); ++i)
+  {
+    float attack = clamp(attackOffset + attackMult*clamp(attackCoeffs[i], 0.0, 1.0), 0.0, 0.9999);
+    float decay = clamp(decayOffset + decayMult*clamp(decayCoeffs[i], 0.0, 1.0), 0.0, 0.9999);
+
     if (spectrum[i] > smoothedSpectrum[i])
       smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], attack);
     else if (spectrum[i] < smoothedSpectrum[i])

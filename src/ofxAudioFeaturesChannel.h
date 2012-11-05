@@ -29,7 +29,19 @@ public:
   void updateSmoothedSpectrum(std::vector<float>& smoothedSpectrum,
                               float attack,
                               float decay);
-  
+  void updateSmoothedSpectrum(std::vector<float>& smoothedSpectrum,
+                              float attackOffset,
+                              float decayOffset,
+                              float attackMult,
+                              float decayMult);
+  void updateSmoothedSpectrum(std::vector<float>& smoothedSpectrum,
+                              float attackOffset,
+                              float decayOffset,
+                              float attackMult,
+                              float decayMult,
+                              const std::vector<float>& attackCoeffs,
+                              const std::vector<float>& decayCoeffs);
+
   bool _compareSpectrumToReference(const std::vector<float>& spectrumReference);
 
   std::vector<float> inputBuffer;
