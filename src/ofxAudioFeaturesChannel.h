@@ -55,7 +55,9 @@ public:
   float pitch;
 
   std::map<std::string, float> spectralFeatures;
-  std::vector<std::string> usedFeatures;
+  std::vector<std::string> usingFeatures;
+  bool usingOnsets;
+  bool usingPitch;
 
   aubio_fft_t* fftProcessor;
   aubio_onset_t* onsetProcessor;
@@ -72,6 +74,7 @@ protected:
   std::map<std::string, fvec_t*> spectralFeatureOutputBuffer;
 
 private:
+  bool usingPhaseVocoderSpectrum;
   std::vector<float> binsScale;
 
   float sampleRate;

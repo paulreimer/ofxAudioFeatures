@@ -41,6 +41,9 @@ ofxAudioFeaturesChannel::ofxAudioFeaturesChannel()
 , pitchProcessor(NULL)
 , calibrateMic(false)
 , calibratedMic(false)
+, usingOnsets(false)
+, usingPitch(false)
+, usingPhaseVocoderSpectrum(true)
 {}
 
 //--------------------------------------------------------------
@@ -87,9 +90,9 @@ ofxAudioFeaturesChannel::setup(size_t _bufferSize, size_t _hopSize, float _sampl
   spectralFeatureProcessor["decrease"]  = new_aubio_specdesc("decrease",  hopSize);
   spectralFeatureProcessor["rolloff"]   = new_aubio_specdesc("rolloff",   hopSize);
 */
-  for (size_t i=0; i<usedFeatures.size(); ++i)
+  for (size_t i=0; i<usingFeatures.size(); ++i)
   {
-    const std::string& featureName(usedFeatures[i]);
+    const std::string& featureName(usingFeatures[i]);
     std::vector<char> featureNameCopy(featureName.c_str(),
                                       featureName.c_str() + featureName.size() + 1);
     spectralFeatureProcessor.insert(make_pair(featureName,
@@ -172,13 +175,19 @@ ofxAudioFeaturesChannel::process(const float now)
   }
 
   // process hop
-//  aubio_fft_do(fftProcessor, currentHopBuffer, fftComplexOutputBuffer);
-  aubio_onset_do(onsetProcessor, currentHopBuffer, onsetOutputBuffer);
-  aubio_pitch_do(pitchProcessor, currentHopBuffer, pitchOutputBuffer);
+  if (!usingPhaseVocoderSpectrum)
+    aubio_fft_do(fftProcessor, currentHopBuffer, fftComplexOutputBuffer);
+
+  if (usingOnsets || usingPhaseVocoderSpectrum) // use onset detector's phase vocoder spectrum
+    aubio_onset_do(onsetProcessor, currentHopBuffer, onsetOutputBuffer);
+  
+  if (usingPitch)
+    aubio_pitch_do(pitchProcessor, currentHopBuffer, pitchOutputBuffer);
 
   for (std::map<std::string, aubio_specdesc_t*>::iterator spectralFeatureProcessorIter = spectralFeatureProcessor.begin();
        spectralFeatureProcessorIter != spectralFeatureProcessor.end(); ++spectralFeatureProcessorIter)
   {
+    // process all configured (at setup time) spectral features
     aubio_specdesc_do(spectralFeatureProcessorIter->second,
                       onsetProcessor->fftgrain, // should be pvoc output
                       spectralFeatureOutputBuffer[spectralFeatureProcessorIter->first]);
@@ -204,12 +213,21 @@ ofxAudioFeaturesChannel::process(const float now)
     onsets.rbegin()->second = pitch;
   }
 
-  // steal fft from onset detector's phase vocoder
-  for (unsigned int i=0; i<spectrum.size(); ++i)
+  if (usingPhaseVocoderSpectrum)
   {
-    //spectrum[i] = fftComplexOutputBuffer->norm[i];
-    spectrum[i] = onsetProcessor->fftgrain->norm[i];
-    phase[i] = onsetProcessor->fftgrain->phas[i];
+    // steal fft from onset detector's phase vocoder
+    for (unsigned int i=0; i<spectrum.size(); ++i)
+    {
+      spectrum[i] = onsetProcessor->fftgrain->norm[i];
+      phase[i] = onsetProcessor->fftgrain->phas[i];
+    }
+  }
+  else {
+    for (unsigned int i=0; i<spectrum.size(); ++i)
+    {
+      spectrum[i] = fftComplexOutputBuffer->norm[i];
+      spectrum[i] = fftComplexOutputBuffer->phas[i];
+    }
   }
 
   // spectrum magnitude calibration
@@ -242,13 +260,16 @@ ofxAudioFeaturesChannel::updateSmoothedSpectrum(std::vector<float>& smoothedSpec
                                                 float attack,
                                                 float decay)
 {
+  float adjustedAttack = powf(attack, (float)hopSize / (float)bufferSize);
+  float adjustedDecay = powf(decay, (float)hopSize / (float)bufferSize);
+
   // spectrum smoothing
   for (unsigned int i=0; i<spectrum.size(); ++i)
   {
     if (spectrum[i] > smoothedSpectrum[i])
-      smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], attack);
+      smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], adjustedAttack);
     else if (spectrum[i] < smoothedSpectrum[i])
-      smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], decay);
+      smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], adjustedDecay);
   }
 }
 
@@ -279,6 +300,9 @@ ofxAudioFeaturesChannel::updateSmoothedSpectrum(std::vector<float>& smoothedSpec
                                                 const std::vector<float>& attackCoeffs,
                                                 const std::vector<float>& decayCoeffs)
 {
+  float adjustedAttackOffset = powf(attackOffset, (float)hopSize / (float)bufferSize);
+  float adjustedDecayOffset = powf(decayOffset, (float)hopSize / (float)bufferSize);
+
   // spectrum smoothing
   for (unsigned int i=0; i<spectrum.size(); ++i)
   {
