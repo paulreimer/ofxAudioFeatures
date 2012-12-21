@@ -10,6 +10,8 @@
 
 #include "ofxAudioFeaturesChannel.h"
 #include <iostream>
+#include <float.h>
+#include <cmath>
 
 struct _aubio_onset_t
 {
@@ -350,7 +352,7 @@ ofxAudioFeaturesChannel::_compareSpectrumToReference(const std::vector<float>& s
     float binVal = spectrum[i];
     float binValReference = spectrumReference[i];
     
-    float error = abs(binValReference - binVal);
+    float error = fabs(binValReference - binVal);
     if (error < (0.0001))
       numIdenticalBins++;
 
