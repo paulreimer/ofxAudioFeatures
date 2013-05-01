@@ -481,3 +481,23 @@ ofxAudioFeaturesChannel::_compareSpectrumToReference(const std::vector<float>& s
 
   return (numIdenticalBins==spectrum.size());
 }
+
+//--------------------------------------------------------------
+void
+ofxAudioFeaturesChannel::resample(const std::vector<float>& spectrumFrom,
+                                  std::vector<float>& spectrumTo,
+                                  float scaleIncrementFactor)
+{
+  unsigned int bw = (spectrumFrom.size()/spectrumTo.size()) / scaleIncrementFactor;
+
+  for (int b=0; b<spectrumTo.size(); ++b)
+  {
+    spectrumTo[b] = 0.0;
+    unsigned int start = b*bw;
+    
+    for (int i=0; i<bw; ++i)
+      spectrumTo[b] += fabs(spectrumFrom[start+i]);
+      
+      spectrumTo[b] /= (float)bw;
+  }
+}

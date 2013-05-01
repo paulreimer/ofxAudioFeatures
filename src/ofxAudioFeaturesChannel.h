@@ -42,6 +42,10 @@ public:
                               const std::vector<float>& attackCoeffs,
                               const std::vector<float>& decayCoeffs);
 
+  void resample(const std::vector<float>& spectrumFrom,
+                std::vector<float>& spectrumTo,
+                float scaleIncrementFactor=4.0);
+
   bool _compareSpectrumToReference(const std::vector<float>& spectrumReference);
 
   std::vector<float> inputBuffer;
