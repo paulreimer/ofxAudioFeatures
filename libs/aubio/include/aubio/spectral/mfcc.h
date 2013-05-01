@@ -23,6 +23,8 @@
 
   Mel-frequency cepstrum coefficients object
 
+  \example spectral/test-mfcc.c
+
 */
 
 #ifndef MFCC_H

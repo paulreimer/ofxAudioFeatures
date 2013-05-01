@@ -13,19 +13,24 @@
 #include <float.h>
 #include <cmath>
 
+#include "peakpicker.h"
+
 struct _aubio_onset_t
 {
-  aubio_pvoc_t * pv;        // phase vocoder
-  aubio_specdesc_t * od;    // onset detection
-  aubio_peakpicker_t * pp;  // peak picker
-  cvec_t * fftgrain;        // phase vocoder output
-  fvec_t * of;              // onset detection function
-  smpl_t threshold;         // onset peak picking threshold
-  smpl_t silence;           // silence threhsold
-  uint_t minioi;            // minimum inter onset interval
-  fvec_t * wasonset;        // number of frames since last onset
-  uint_t samplerate;        // sampling rate of the input signal
-  uint_t hop_size;          // number of samples between two runs
+  aubio_pvoc_t * pv;            /**< phase vocoder */
+  aubio_specdesc_t * od;        /**< spectral descriptor */
+  aubio_peakpicker_t * pp;      /**< peak picker */
+  cvec_t * fftgrain;            /**< phase vocoder output */
+  fvec_t * desc;                /**< spectral description */
+  smpl_t threshold;             /**< onset peak picking threshold */
+  smpl_t silence;               /**< silence threhsold */
+  uint_t minioi;                /**< minimum inter onset interval */
+  uint_t delay;                 /**< constant delay, in samples, removed from detected onset times */
+  uint_t samplerate;            /**< sampling rate of the input signal */
+  uint_t hop_size;              /**< number of samples between two runs */
+  
+  uint_t total_frames;          /**< total number of frames processed since the beginning */
+  uint_t last_onset;            /**< last detected onset location, in frames */
 };
 
 //--------------------------------------------------------------
@@ -35,17 +40,24 @@ ofxAudioFeaturesChannel::ofxAudioFeaturesChannel()
 , spectrumSize(0)
 , bufferSize(0)
 , currentHopBuffer(NULL)
+, synthesizedOutputBuffer(NULL)
 , fftComplexOutputBuffer(NULL)
 , fftProcessor(NULL)
 , onsetOutputBuffer(NULL)
 , onsetProcessor(NULL)
 , pitchOutputBuffer(NULL)
 , pitchProcessor(NULL)
+, transientSteadyStateSeparationProcessor(NULL)
+, transientOutputBuffer(NULL)
+, steadyStateOutputBuffer(NULL)
 , calibrateMic(false)
 , calibratedMic(false)
-, usingOnsets(false)
+, usingOnsets(true)
 , usingPitch(false)
-, usingPhaseVocoderSpectrum(true)
+, usingTransientSteadyStateSeparation(false)
+//, usingPhaseVocoderSpectrum(true)
+, usingPhaseVocoderSpectrum(false)
+, hopIdx(0)
 {}
 
 //--------------------------------------------------------------
@@ -63,16 +75,23 @@ ofxAudioFeaturesChannel::setup(size_t _bufferSize, size_t _hopSize, float _sampl
   sampleRate    = _sampleRate;
   spectrumSize  = _bufferSize / 2;
 
+  currentHopBuffer        = new_fvec(hopSize);
+  synthesizedOutputBuffer = new_fvec(bufferSize);
+  
   fftComplexOutputBuffer  = new_cvec(bufferSize);
+  fftInputBuffer          = new_fvec(bufferSize);
   fftProcessor            = new_aubio_fft(bufferSize);
 
-  currentHopBuffer        = new_fvec(hopSize);
   onsetOutputBuffer       = new_fvec(1);
   onsetProcessor          = new_aubio_onset("mkl", bufferSize, hopSize, sampleRate);
-  
+
   pitchOutputBuffer       = new_fvec(1);
   pitchProcessor          = new_aubio_pitch("yin", bufferSize, hopSize, sampleRate);
   aubio_pitch_set_unit(pitchProcessor, "bin");
+
+  transientOutputBuffer   = new_cvec(bufferSize);
+  steadyStateOutputBuffer = new_cvec(bufferSize);
+  transientSteadyStateSeparationProcessor = new_aubio_tss(bufferSize, hopSize);
 
 	inputBuffer.resize(bufferSize);
 /*
@@ -131,6 +150,12 @@ ofxAudioFeaturesChannel::destroy()
     fftComplexOutputBuffer = NULL;
   }
 
+  if (synthesizedOutputBuffer)
+  {
+    del_fvec(synthesizedOutputBuffer);
+    synthesizedOutputBuffer = NULL;
+  }
+
   if (onsetProcessor)
   {
     del_aubio_onset(onsetProcessor);
@@ -155,6 +180,24 @@ ofxAudioFeaturesChannel::destroy()
     pitchOutputBuffer = NULL;
   }
 
+  if (transientSteadyStateSeparationProcessor)
+  {
+    del_aubio_tss(transientSteadyStateSeparationProcessor);
+    transientSteadyStateSeparationProcessor = NULL;
+  }
+
+  if (transientOutputBuffer)
+  {
+    del_cvec(transientOutputBuffer);
+    transientOutputBuffer = NULL;
+  }
+  
+  if (steadyStateOutputBuffer)
+  {
+    del_cvec(steadyStateOutputBuffer);
+    steadyStateOutputBuffer = NULL;
+  }
+
   for (std::map<std::string, aubio_specdesc_t*>::iterator spectralFeatureProcessorIter = spectralFeatureProcessor.begin();
        spectralFeatureProcessorIter != spectralFeatureProcessor.end(); ++spectralFeatureProcessorIter)
     del_aubio_specdesc(spectralFeatureProcessorIter->second);
@@ -168,23 +211,40 @@ ofxAudioFeaturesChannel::destroy()
 
 //--------------------------------------------------------------
 void
-ofxAudioFeaturesChannel::process(const float now)
+ofxAudioFeaturesChannel::process(const float now,
+                                 const SpectrumType spectrumType)
 {
   // input new hop
 	for (unsigned int i=0; i<hopSize; ++i)
   {
 		currentHopBuffer->data[i] = inputBuffer[i];
+    fftInputBuffer->data[i + (hopIdx*hopSize)] =  inputBuffer[i];
   }
+  hopIdx++;
 
   // process hop
   if (!usingPhaseVocoderSpectrum)
-    aubio_fft_do(fftProcessor, currentHopBuffer, fftComplexOutputBuffer);
+  {
+    if ((hopIdx*hopSize) >= bufferSize)
+    {
+      hopIdx = 0;
+      aubio_fft_do(fftProcessor, fftInputBuffer, fftComplexOutputBuffer);
+    }
+  }
 
-  if (usingOnsets || usingPhaseVocoderSpectrum) // use onset detector's phase vocoder spectrum
+  if (usingOnsets || usingPhaseVocoderSpectrum)
     aubio_onset_do(onsetProcessor, currentHopBuffer, onsetOutputBuffer);
-  
+
   if (usingPitch)
     aubio_pitch_do(pitchProcessor, currentHopBuffer, pitchOutputBuffer);
+
+  if (usingTransientSteadyStateSeparation)
+  {
+    if (usingPhaseVocoderSpectrum)
+      aubio_tss_do(transientSteadyStateSeparationProcessor, onsetProcessor->fftgrain, transientOutputBuffer, steadyStateOutputBuffer);
+    else
+      aubio_tss_do(transientSteadyStateSeparationProcessor, fftComplexOutputBuffer, transientOutputBuffer, steadyStateOutputBuffer);
+  }
 
   for (std::map<std::string, aubio_specdesc_t*>::iterator spectralFeatureProcessorIter = spectralFeatureProcessor.begin();
        spectralFeatureProcessorIter != spectralFeatureProcessor.end(); ++spectralFeatureProcessorIter)
@@ -198,11 +258,7 @@ ofxAudioFeaturesChannel::process(const float now)
   }
 
   // pitch extraction (per-hop)
-  float currentPitch = pitchOutputBuffer->data[0];
-  if (currentPitch != 0)
-#define lerp(start, stop, amt)  (start + (stop-start) * amt)
-    pitch = lerp(pitch, currentPitch, 0.7);
-#undef lerp
+  pitch = pitchOutputBuffer->data[0];
 
   // onset extraction (per-hop)
   bool onsetDetected = (onsetOutputBuffer->data[0] > FLT_EPSILON);
@@ -215,20 +271,29 @@ ofxAudioFeaturesChannel::process(const float now)
     onsets.rbegin()->second = pitch;
   }
 
-  if (usingPhaseVocoderSpectrum)
+  cvec_t* selectedSpectrum = NULL;
+  switch (spectrumType)
   {
-    // steal fft from onset detector's phase vocoder
-    for (unsigned int i=0; i<spectrum.size(); ++i)
-    {
-      spectrum[i] = onsetProcessor->fftgrain->norm[i];
-      phase[i] = onsetProcessor->fftgrain->phas[i];
-    }
+    case FFTSpectrum:
+      selectedSpectrum = fftComplexOutputBuffer;
+      break;
+    case PhaseVocoderSpectrum:
+      selectedSpectrum = onsetProcessor->fftgrain;
+      break;
+    case TransientSpectrum:
+      selectedSpectrum = transientOutputBuffer;
+      break;
+    case SteadyStateSpectrum:
+      selectedSpectrum = steadyStateOutputBuffer;
+      break;
   }
-  else {
+  
+  if (selectedSpectrum != NULL)
+  {
     for (unsigned int i=0; i<spectrum.size(); ++i)
     {
-      spectrum[i] = fftComplexOutputBuffer->norm[i];
-      spectrum[i] = fftComplexOutputBuffer->phas[i];
+      spectrum[i] = selectedSpectrum->norm[i];
+      phase[i] = selectedSpectrum->phas[i];
     }
   }
 
@@ -334,7 +399,7 @@ ofxAudioFeaturesChannel::_compareSpectrumToReference(const std::vector<float>& s
 
   float total_error = 0;
   float maxError = FLT_MIN;
-  size_t maxErrorBin = FLT_MAX;
+  int maxErrorBin = -1;
   size_t numIdenticalBins = 0;
 
   if (spectrum.size() != spectrumReference.size())
@@ -346,14 +411,31 @@ ofxAudioFeaturesChannel::_compareSpectrumToReference(const std::vector<float>& s
     << std::endl;
     return false;
   }
-
+  
 	for (unsigned int i=0; i<spectrumReference.size(); ++i)
   {
-    float binVal = spectrum[i];
+    float binVal = sqrtf(spectrum[i]);
     float binValReference = spectrumReference[i];
-    
-    float error = fabs(binValReference - binVal);
-    if (error < (0.0001))
+
+    if (binVal > 1000)
+    {
+      std::cout << "Wtf huge binval @ " << i << std::endl;
+    }
+
+    if (binVal != binVal)
+    {
+      std::cout << "NaNery in FFTW @ " << i << std::endl;
+      continue;
+    }
+    if (binValReference != binValReference)
+    {
+      std::cout << "NaNery in Kiss @ " << i << std::endl;
+      continue;
+    }
+
+    float error = abs(binValReference - binVal);
+//    if (error < (0.0001))
+    if (error == 0.0)
       numIdenticalBins++;
 
     sum += binVal;

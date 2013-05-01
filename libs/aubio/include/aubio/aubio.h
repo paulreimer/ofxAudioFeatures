@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2003-2009 Paul Brossier <piem@aubio.org>
+  Copyright (C) 2003-2013 Paul Brossier <piem@aubio.org>
 
   This file is part of aubio.
 
@@ -139,9 +139,16 @@
 
 /** @file aubio.h Global aubio include file.
 
-  Programmers just need to include this file as:
+  You will want to include this file as:
 
   @code
+    #include <aubio/aubio.h>
+  @endcode
+
+  To access headers with unstable prototypes, use:
+
+  @code
+    #define AUBIO_UNSTABLE 1
     #include <aubio/aubio.h>
   @endcode
 
@@ -159,6 +166,7 @@ extern "C"
 #include "lvec.h"
 #include "fmat.h"
 #include "musicutils.h"
+#include "vecutils.h"
 #include "temporal/resampler.h"
 #include "temporal/filter.h"
 #include "temporal/biquad.h"
@@ -170,23 +178,30 @@ extern "C"
 #include "spectral/filterbank_mel.h"
 #include "spectral/mfcc.h"
 #include "spectral/specdesc.h"
+#include "spectral/tss.h"
 #include "pitch/pitch.h"
 #include "onset/onset.h"
-#include "onset/peakpicker.h"
 #include "tempo/tempo.h"
+#include "io/source.h"
+#include "io/sink.h"
+#include "synth/sampler.h"
 
 #if AUBIO_UNSTABLE
-#include "vecutils.h"
 #include "mathutils.h"
-#include "utils/scale.h"
-#include "utils/hist.h"
-#include "spectral/tss.h"
+#include "io/source_sndfile.h"
+#include "io/source_apple_audio.h"
+#include "io/sink_sndfile.h"
+#include "io/sink_apple_audio.h"
+#include "io/sndfileio.h"
+#include "onset/peakpicker.h"
 #include "pitch/pitchmcomb.h"
 #include "pitch/pitchyin.h"
 #include "pitch/pitchyinfft.h"
 #include "pitch/pitchschmitt.h"
 #include "pitch/pitchfcomb.h"
 #include "tempo/beattracking.h"
+#include "utils/scale.h"
+#include "utils/hist.h"
 #endif
 
 #ifdef __cplusplus

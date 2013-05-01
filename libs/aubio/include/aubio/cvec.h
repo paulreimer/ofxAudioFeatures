@@ -19,7 +19,7 @@
 */
 
 #ifndef _CVEC_H
-#define _CVEC_H_
+#define _CVEC_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,19 +27,43 @@ extern "C" {
 
 /** \file
 
-  Complex buffers
+  Vector of complex-valued data
 
-  This file specifies the cvec_t buffer type, which is used throughout aubio to
-  store complex data. Complex values are stored in terms of phase and
-  norm, within size/2+1 long vectors.
+  This file specifies the ::cvec_t buffer type, which is used throughout aubio
+  to store complex data. Complex values are stored in terms of ::cvec_t.phas
+  and norm, within size/2+1 long vectors of ::smpl_t.
+
+  \example test-cvec.c
 
 */
 
-/** Buffer for complex data */
+/** Buffer for complex data
+
+  \code
+
+  uint_t buffer_size = 1024;
+
+  // create a complex vector of 512 values
+  cvec_t * input = new_cvec (buffer_size);
+
+  // set some values of the vector
+  input->norm[23] = 2.;
+  input->phas[23] = M_PI;
+  // ..
+
+  // compute the mean of the vector
+  mean = cvec_mean(input);
+
+  // destroy the vector
+  del_cvec (input);
+
+  \endcode
+
+ */
 typedef struct {
-  uint_t length;   /**< length of buffer = (requested length)/2 + 1 */
-  smpl_t *norm;   /**< norm array of size [length] */
-  smpl_t *phas;   /**< phase array of size [length] */
+  uint_t length;  /**< length of buffer = (requested length)/2 + 1 */
+  smpl_t *norm;   /**< norm array of size ::cvec_t.length */
+  smpl_t *phas;   /**< phase array of size ::cvec_t.length */
 } cvec_t;
 
 /** cvec_t buffer creation function
@@ -47,7 +71,7 @@ typedef struct {
   This function creates a cvec_t structure holding two arrays of size
   [length/2+1], corresponding to the norm and phase values of the
   spectral frame. The length stored in the structure is the actual size of both
-  arrays, not the length of the complex and symetrical vector, specified as
+  arrays, not the length of the complex and symmetrical vector, specified as
   creation argument.
 
   \param length the length of the buffer to create
@@ -66,7 +90,7 @@ void del_cvec(cvec_t *s);
   result can be obtained by assigning vec->norm[position]. Its purpose
   is to access these values from wrappers, as created by swig.
 
-  \param s vector to write to 
+  \param s vector to write to
   \param data norm value to write in s->norm[position]
   \param position sample position to write to
 
@@ -127,9 +151,9 @@ smpl_t * cvec_get_norm(cvec_t *s);
 */
 smpl_t * cvec_get_phas(cvec_t *s);
 
-/** print out cvec data 
+/** print out cvec data
 
-  \param s vector to print out 
+  \param s vector to print out
 
 */
 void cvec_print(cvec_t *s);
@@ -142,14 +166,14 @@ void cvec_print(cvec_t *s);
 */
 void cvec_set(cvec_t *s, smpl_t val);
 
-/** set all elements to zero 
+/** set all elements to zero
 
   \param s vector to modify
 
 */
 void cvec_zeros(cvec_t *s);
 
-/** set all elements to ones 
+/** set all elements to ones
 
   \param s vector to modify
 

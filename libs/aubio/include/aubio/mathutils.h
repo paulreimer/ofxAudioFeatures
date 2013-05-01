@@ -18,8 +18,13 @@
 
 */
 
-/** @file
- *  various math functions
+/** \file
+
+  Various math functions
+
+  \example test-mathutils.c
+  \example test-mathutils-window.c
+
  */
 
 #ifndef MATHUTILS_H
@@ -35,8 +40,7 @@ extern "C" {
 /** compute the mean of a vector
 
   \param s vector to compute mean from
-
-  \return the mean of v
+  \return the mean of `v`
 
 */
 smpl_t fvec_mean (fvec_t * s);
@@ -179,10 +183,10 @@ void fvec_add (fvec_t * v, smpl_t c);
 */
 void fvec_min_removal (fvec_t * v);
 
-/** compute moving median theshold of a vector
+/** compute moving median threshold of a vector
 
   This function computes the moving median threshold value of at the given
-position of a vector, taking the median amongs post elements before and up to
+position of a vector, taking the median among post elements before and up to
 pre elements after pos.
  
   \param v input vector
@@ -230,6 +234,21 @@ smpl_t fvec_median (fvec_t * v);
 /** finds exact peak index by quadratic interpolation*/
 smpl_t fvec_quadint (fvec_t * x, uint_t pos);
 
+/** finds exact peak index by quadratic interpolation
+
+  See [Quadratic Interpolation of Spectral
+  Peaks](https://ccrma.stanford.edu/~jos/sasp/Quadratic_Peak_Interpolation.html),
+  by Julius O. Smith III
+
+  \f$ p_{frac} = \frac{1}{2} \frac {x[p-1] - x[p+1]} {x[p-1] - 2 x[p] + x[p+1]} \in [ -.5, .5] \f$
+
+  \param x vector to get the interpolated peak position from
+  \param p index of the peak in vector `x`
+  \return \f$ p + p_{frac} \f$ exact peak position of interpolated maximum or minimum
+
+*/
+smpl_t fvec_quadratic_peak_pos (fvec_t * x, uint_t p);
+
 /** Quadratic interpolation using Lagrange polynomial.
  
   Inspired from ``Comparison of interpolation algorithms in real-time sound
@@ -238,7 +257,7 @@ processing'', Vladimir Arnost,
   \param s0,s1,s2 are 3 consecutive samples of a curve 
   \param pf is the floating point index [0;2]
  
-  \return s0 + (pf/2.)*((pf-3.)*s0-2.*(pf-2.)*s1+(pf-1.)*s2);
+  \return \f$ s0 + (pf/2.)*((pf-3.)*s0-2.*(pf-2.)*s1+(pf-1.)*s2); \f$
 
 */
 smpl_t aubio_quadfrac (smpl_t s0, smpl_t s1, smpl_t s2, smpl_t pf);
