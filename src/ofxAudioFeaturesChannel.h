@@ -71,6 +71,7 @@ public:
 
 protected:
   fvec_t* currentHopBuffer;
+  fvec_t* synthesizedOutputBuffer;
 
   cvec_t* fftComplexOutputBuffer;
   fvec_t* onsetOutputBuffer;

@@ -47,17 +47,17 @@ ofxAudioFeaturesChannel::ofxAudioFeaturesChannel()
 , onsetProcessor(NULL)
 , pitchOutputBuffer(NULL)
 , pitchProcessor(NULL)
-, transientSteadyStateSeparationProcessor(NULL)
-, transientOutputBuffer(NULL)
-, steadyStateOutputBuffer(NULL)
+//, transientSteadyStateSeparationProcessor(NULL)
+//, transientOutputBuffer(NULL)
+//, steadyStateOutputBuffer(NULL)
 , calibrateMic(false)
 , calibratedMic(false)
 , usingOnsets(true)
 , usingPitch(false)
-, usingTransientSteadyStateSeparation(false)
+//, usingTransientSteadyStateSeparation(false)
 //, usingPhaseVocoderSpectrum(true)
 , usingPhaseVocoderSpectrum(false)
-, hopIdx(0)
+//, hopIdx(0)
 {}
 
 //--------------------------------------------------------------
@@ -79,7 +79,7 @@ ofxAudioFeaturesChannel::setup(size_t _bufferSize, size_t _hopSize, float _sampl
   synthesizedOutputBuffer = new_fvec(bufferSize);
   
   fftComplexOutputBuffer  = new_cvec(bufferSize);
-  fftInputBuffer          = new_fvec(bufferSize);
+//  fftInputBuffer          = new_fvec(bufferSize);
   fftProcessor            = new_aubio_fft(bufferSize);
 
   onsetOutputBuffer       = new_fvec(1);
@@ -89,9 +89,9 @@ ofxAudioFeaturesChannel::setup(size_t _bufferSize, size_t _hopSize, float _sampl
   pitchProcessor          = new_aubio_pitch("yin", bufferSize, hopSize, sampleRate);
   aubio_pitch_set_unit(pitchProcessor, "bin");
 
-  transientOutputBuffer   = new_cvec(bufferSize);
-  steadyStateOutputBuffer = new_cvec(bufferSize);
-  transientSteadyStateSeparationProcessor = new_aubio_tss(bufferSize, hopSize);
+//  transientOutputBuffer   = new_cvec(bufferSize);
+//  steadyStateOutputBuffer = new_cvec(bufferSize);
+//  transientSteadyStateSeparationProcessor = new_aubio_tss(bufferSize, hopSize);
 
 	inputBuffer.resize(bufferSize);
 /*
@@ -179,7 +179,7 @@ ofxAudioFeaturesChannel::destroy()
     del_fvec(pitchOutputBuffer);
     pitchOutputBuffer = NULL;
   }
-
+/*
   if (transientSteadyStateSeparationProcessor)
   {
     del_aubio_tss(transientSteadyStateSeparationProcessor);
@@ -197,7 +197,7 @@ ofxAudioFeaturesChannel::destroy()
     del_cvec(steadyStateOutputBuffer);
     steadyStateOutputBuffer = NULL;
   }
-
+*/
   for (std::map<std::string, aubio_specdesc_t*>::iterator spectralFeatureProcessorIter = spectralFeatureProcessor.begin();
        spectralFeatureProcessorIter != spectralFeatureProcessor.end(); ++spectralFeatureProcessorIter)
     del_aubio_specdesc(spectralFeatureProcessorIter->second);
@@ -211,18 +211,19 @@ ofxAudioFeaturesChannel::destroy()
 
 //--------------------------------------------------------------
 void
-ofxAudioFeaturesChannel::process(const float now,
-                                 const SpectrumType spectrumType)
+ofxAudioFeaturesChannel::process(const float now/*,
+                                 const SpectrumType spectrumType*/)
 {
   // input new hop
 	for (unsigned int i=0; i<hopSize; ++i)
   {
 		currentHopBuffer->data[i] = inputBuffer[i];
-    fftInputBuffer->data[i + (hopIdx*hopSize)] =  inputBuffer[i];
+//    fftInputBuffer->data[i + (hopIdx*hopSize)] =  inputBuffer[i];
   }
-  hopIdx++;
 
+/*
   // process hop
+  hopIdx++;
   if (!usingPhaseVocoderSpectrum)
   {
     if ((hopIdx*hopSize) >= bufferSize)
@@ -231,13 +232,13 @@ ofxAudioFeaturesChannel::process(const float now,
       aubio_fft_do(fftProcessor, fftInputBuffer, fftComplexOutputBuffer);
     }
   }
-
+*/
   if (usingOnsets || usingPhaseVocoderSpectrum)
     aubio_onset_do(onsetProcessor, currentHopBuffer, onsetOutputBuffer);
 
   if (usingPitch)
     aubio_pitch_do(pitchProcessor, currentHopBuffer, pitchOutputBuffer);
-
+/*
   if (usingTransientSteadyStateSeparation)
   {
     if (usingPhaseVocoderSpectrum)
@@ -245,7 +246,7 @@ ofxAudioFeaturesChannel::process(const float now,
     else
       aubio_tss_do(transientSteadyStateSeparationProcessor, fftComplexOutputBuffer, transientOutputBuffer, steadyStateOutputBuffer);
   }
-
+*/
   for (std::map<std::string, aubio_specdesc_t*>::iterator spectralFeatureProcessorIter = spectralFeatureProcessor.begin();
        spectralFeatureProcessorIter != spectralFeatureProcessor.end(); ++spectralFeatureProcessorIter)
   {
@@ -271,6 +272,8 @@ ofxAudioFeaturesChannel::process(const float now,
     onsets.rbegin()->second = pitch;
   }
 
+  cvec_t* selectedSpectrum = onsetProcessor->fftgrain;
+/*
   cvec_t* selectedSpectrum = NULL;
   switch (spectrumType)
   {
@@ -287,7 +290,7 @@ ofxAudioFeaturesChannel::process(const float now,
       selectedSpectrum = steadyStateOutputBuffer;
       break;
   }
-  
+*/
   if (selectedSpectrum != NULL)
   {
     for (unsigned int i=0; i<spectrum.size(); ++i)
