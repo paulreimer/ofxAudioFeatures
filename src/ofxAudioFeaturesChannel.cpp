@@ -35,29 +35,29 @@ struct _aubio_onset_t
 
 //--------------------------------------------------------------
 ofxAudioFeaturesChannel::ofxAudioFeaturesChannel()
-: sampleRate(0.)
-, hopSize(0)
-, spectrumSize(0)
-, bufferSize(0)
-, currentHopBuffer(NULL)
-, synthesizedOutputBuffer(NULL)
-, fftComplexOutputBuffer(NULL)
-, fftProcessor(NULL)
-, onsetOutputBuffer(NULL)
-, onsetProcessor(NULL)
-, pitchOutputBuffer(NULL)
-, pitchProcessor(NULL)
-//, transientSteadyStateSeparationProcessor(NULL)
-//, transientOutputBuffer(NULL)
-//, steadyStateOutputBuffer(NULL)
-, calibrateMic(false)
+: calibrateMic(false)
 , calibratedMic(false)
 , usingOnsets(true)
 , usingPitch(false)
+, usingPhaseVocoderSpectrum(false)
+, fftProcessor(NULL)
+, onsetProcessor(NULL)
+, pitchProcessor(NULL)
+, currentHopBuffer(NULL)
+, synthesizedOutputBuffer(NULL)
+, fftComplexOutputBuffer(NULL)
+, onsetOutputBuffer(NULL)
+, pitchOutputBuffer(NULL)
+//, transientSteadyStateSeparationProcessor(NULL)
+//, transientOutputBuffer(NULL)
+//, steadyStateOutputBuffer(NULL)
 //, usingTransientSteadyStateSeparation(false)
 //, usingPhaseVocoderSpectrum(true)
-, usingPhaseVocoderSpectrum(false)
 //, hopIdx(0)
+, sampleRate(0.)
+, spectrumSize(0)
+, bufferSize(0)
+, hopSize(0)
 {}
 
 //--------------------------------------------------------------
@@ -370,8 +370,8 @@ ofxAudioFeaturesChannel::updateSmoothedSpectrum(std::vector<float>& smoothedSpec
                                                 const std::vector<float>& attackCoeffs,
                                                 const std::vector<float>& decayCoeffs)
 {
-  float adjustedAttackOffset = powf(attackOffset, (float)hopSize / (float)bufferSize);
-  float adjustedDecayOffset = powf(decayOffset, (float)hopSize / (float)bufferSize);
+//  float adjustedAttackOffset = powf(attackOffset, (float)hopSize / (float)bufferSize);
+//  float adjustedDecayOffset = powf(decayOffset, (float)hopSize / (float)bufferSize);
 
   // spectrum smoothing
   for (unsigned int i=0; i<spectrum.size(); ++i)
@@ -436,7 +436,7 @@ ofxAudioFeaturesChannel::_compareSpectrumToReference(const std::vector<float>& s
       continue;
     }
 
-    float error = abs(binValReference - binVal);
+    float error = std::abs(binValReference - binVal);
 //    if (error < (0.0001))
     if (error == 0.0)
       numIdenticalBins++;
@@ -493,13 +493,13 @@ ofxAudioFeaturesChannel::resample(const std::vector<float>& spectrumFrom,
 {
   unsigned int bw = (spectrumFrom.size()/spectrumTo.size()) / scaleIncrementFactor;
 
-  for (int b=0; b<spectrumTo.size(); ++b)
+  for (size_t b=0; b<spectrumTo.size(); ++b)
   {
     spectrumTo[b] = 0.0;
     unsigned int start = b*bw;
     
-    for (int i=0; i<bw; ++i)
-      spectrumTo[b] += fabs(spectrumFrom[start+i]);
+    for (size_t i=0; i<bw; ++i)
+      spectrumTo[b] += std::abs(spectrumFrom[start+i]);
       
       spectrumTo[b] /= (float)bw;
   }
