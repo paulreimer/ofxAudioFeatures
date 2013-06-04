@@ -13,7 +13,7 @@
 #include <float.h>
 #include <cmath>
 
-#include "peakpicker.h"
+#include <aubio/onset/peakpicker.h>
 
 struct _aubio_onset_t
 {

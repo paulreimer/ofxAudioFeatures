@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "aubio.h"
+#include <aubio/aubio.h>
 
 #include <vector>
 #include <deque>
