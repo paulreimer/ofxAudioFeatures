@@ -1,8 +1,10 @@
 #pragma once
 
 #ifdef __APPLE__
-
 #import <AudioToolbox/AudioServices.h>
+#else
+typedef unsigned int AudioDeviceID;
+#endif
 
 class ofxAudioDeviceControl
 {
@@ -18,4 +20,3 @@ public:
   static AudioDeviceID defaultInputDeviceID();
 };
 
-#endif

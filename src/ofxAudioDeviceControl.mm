@@ -1,5 +1,6 @@
 #include "ofxAudioDeviceControl.h"
 
+#ifdef __APPLE__
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreAudio/CoreAudio.h>
 
@@ -307,3 +308,4 @@ if ( ! err )
   hasProperty = AudioObjectHasProperty( deviceID, &address );
 }
 */
+#endif // __APPLE__
