@@ -255,7 +255,10 @@ ofxAudioFeaturesChannel::process(const float now/*,
   for (std::map<std::string, aubio_specdesc_t*>::iterator spectralFeatureProcessorIter = spectralFeatureProcessor.begin();
        spectralFeatureProcessorIter != spectralFeatureProcessor.end(); ++spectralFeatureProcessorIter)
   {
-    std::cout << "before featureName: (" << spectralFeatureProcessorIter->first << ")";
+    std::cout << "before featureName: (" << spectralFeatureProcessorIter->first << ")" << std::endl;
+
+    if (spectralFeatureProcessorIter->second == NULL)
+      std::cout << "INVALID PROCESSOR PTR!" << std::endl;
 
     // process all configured (at setup time) spectral features
     aubio_specdesc_do(spectralFeatureProcessorIter->second,
