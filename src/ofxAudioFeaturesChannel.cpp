@@ -260,6 +260,9 @@ ofxAudioFeaturesChannel::process(const float now/*,
     if (spectralFeatureProcessorIter->second == NULL)
       std::cout << "INVALID PROCESSOR PTR!" << std::endl;
 
+    if (spectralFeatureOutputBuffer.find(spectralFeatureProcessorIter->first) == spectralFeatureOutputBuffer.end())
+      std::cout << "INVALID OUTPUT DATA PTR!" << std::endl;
+
     // process all configured (at setup time) spectral features
     aubio_specdesc_do(spectralFeatureProcessorIter->second,
                       onsetProcessor->fftgrain, // should be pvoc output
