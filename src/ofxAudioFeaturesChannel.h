@@ -10,7 +10,9 @@
 
 #pragma once
 
-#include <aubio/aubio.h>
+extern "C" {
+#include "aubio.h"
+}
 
 #include <vector>
 #include <deque>

@@ -10,10 +10,12 @@
 
 #include "ofxAudioFeaturesChannel.h"
 #include <iostream>
-#include <float.h>
 #include <cmath>
 
+extern "C" {
 #include "peakpicker.h"
+#include <float.h>
+}
 
 struct _aubio_onset_t
 {
