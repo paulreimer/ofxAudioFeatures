@@ -116,10 +116,6 @@ ofxAudioFeaturesChannel::setup(size_t _bufferSize, size_t _hopSize, float _sampl
     const std::string& featureName(usingFeatures[i]);
     std::vector<char> featureNameCopy(featureName.c_str(),
                                       featureName.c_str() + featureName.size() + 1);
-    std::cout
-    << "featureName: (" << featureName << ") .size(" << featureName.size() << ") "
-    << "featureNameCopy.size(" << featureNameCopy.size() << ")"
-    << std::endl;
     spectralFeatureProcessor.insert(make_pair(featureName,
                                               new_aubio_specdesc(&featureNameCopy[0], hopSize)));
     spectralFeatureOutputBuffer.insert(make_pair(featureName, new_fvec(1)));
@@ -251,28 +247,19 @@ ofxAudioFeaturesChannel::process(const float now/*,
       aubio_tss_do(transientSteadyStateSeparationProcessor, fftComplexOutputBuffer, transientOutputBuffer, steadyStateOutputBuffer);
   }
 */
-  std::cout << "before features" << std::endl;
   for (std::map<std::string, aubio_specdesc_t*>::iterator spectralFeatureProcessorIter = spectralFeatureProcessor.begin();
        spectralFeatureProcessorIter != spectralFeatureProcessor.end(); ++spectralFeatureProcessorIter)
   {
-    std::cout << "before featureName: (" << spectralFeatureProcessorIter->first << ")" << std::endl;
-
-    if (spectralFeatureProcessorIter->second == NULL)
-      std::cout << "INVALID PROCESSOR PTR!" << std::endl;
-
-    if (spectralFeatureOutputBuffer.find(spectralFeatureProcessorIter->first) == spectralFeatureOutputBuffer.end())
-      std::cout << "INVALID OUTPUT DATA PTR!" << std::endl;
-
+    if (spectralFeatureProcessorIter->first == "phase")
+      std::cout << "before process phase" << std::endl;
     // process all configured (at setup time) spectral features
     aubio_specdesc_do(spectralFeatureProcessorIter->second,
                       onsetProcessor->fftgrain, // should be pvoc output
                       spectralFeatureOutputBuffer[spectralFeatureProcessorIter->first]);
-
-    std::cout << "after process featureName: (" << spectralFeatureProcessorIter->first << ")" << std::endl;
-    spectralFeatures[spectralFeatureProcessorIter->first] = spectralFeatureOutputBuffer[spectralFeatureProcessorIter->first]->data[0];
-    std::cout << "after copied featureName: (" << spectralFeatureProcessorIter->first << ")" << std::endl;
+    if (spectralFeatureProcessorIter->first == "phase")
+      std::cout << "after process phase" << std::endl;
   }
-  std::cout << "after features" << std::endl;
+  std::cout << "after all features" << std::endl;
 
   // pitch extraction (per-hop)
   pitch = pitchOutputBuffer->data[0];
