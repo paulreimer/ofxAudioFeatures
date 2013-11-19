@@ -13,6 +13,10 @@
 #include <float.h>
 #include <cmath>
 
+#ifndef MIN
+  #define MIN(x,y) (((x) < (y)) ? (x) : (y))
+#endif
+
 #include <aubio/onset/peakpicker.h>
 
 struct _aubio_onset_t
@@ -334,7 +338,7 @@ ofxAudioFeaturesChannel::updateSmoothedSpectrum(std::vector<float>& smoothedSpec
   float adjustedDecay = powf(decay, (float)hopSize / (float)bufferSize);
 
   // spectrum smoothing
-  for (unsigned int i=0; i<spectrum.size(); ++i)
+  for (unsigned int i=0; i<MIN(spectrum.size(), smoothedSpectrum.size()); ++i)
   {
     if (spectrum[i] > smoothedSpectrum[i])
       smoothedSpectrum[i] = lerp(spectrum[i], smoothedSpectrum[i], adjustedAttack);
