@@ -378,7 +378,7 @@ ofxAudioFeaturesChannel::updateSmoothedSpectrum(std::vector<float>& smoothedSpec
 //  float adjustedDecayOffset = powf(decayOffset, (float)hopSize / (float)bufferSize);
 
   // spectrum smoothing
-  for (unsigned int i=0; i<spectrum.size(); ++i)
+  for (unsigned int i=0; i<MIN(spectrum.size(), smoothedSpectrum.size()); ++i)
   {
     float attack = clamp(attackOffset + attackMult*clamp(attackCoeffs[i], 0.0, 1.0), 0.0, 0.9999);
     float decay = clamp(decayOffset + decayMult*clamp(decayCoeffs[i], 0.0, 1.0), 0.0, 0.9999);
